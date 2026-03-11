@@ -1,0 +1,158 @@
+version: "3.9"
+
+# ── Portfolio Optimizer — Compose Stack ────────────────────────────────────────
+# Services:
+#   redis     — Cache backend (port 6379)
+#   mlflow    — Experiment tracking UI (port 5000)
+#   api       — FastAPI backend (port 8000)
+#   dashboard — Streamlit frontend (port 8501)
+#
+# Quick start:
+#   docker compose build
+#   docker compose up -d
+#   open http://localhost:8501        # Dashboard
+#   open http://localhost:8000/docs   # FastAPI Swagger
+#   open http://localhost:5000        # MLflow UI
+# ────────────────────────────────────────────────────────────────────────────
+
+x-common-env: &common-env
+  JWT_SECRET_KEY: "${JWT_SECRET_KEY:-supersecretjwt2024changeInProd}"
+  JWT_ALGORITHM: "HS256"
+  ACCESS_TOKEN_EXPIRE_MINUTES: "60"
+  REDIS_URL: "redis://redis:6379/0"
+  MLFLOW_TRACKING_URI: "sqlite:////mlflow_data/mlflow.db"
+  NSE_TICKERS: "RELIANCE.NS,TCS.NS,HDFCBANK.NS,INFY.NS,ICICIBANK.NS,WIPRO.NS,BAJFINANCE.NS,ASIANPAINT.NS,TITAN.NS,MARUTI.NS,ONGC.NS,ZOMATO.NS"
+  API_BASE_URL: "http://api:8000/api/v1"
+  LOG_LEVEL: "INFO"
+  ENV: "production"
+
+services:
+
+  # ── Redis ─────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: portfolio_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ── MLflow Tracking Server ──────────────────────────────────────────────────
+  mlflow:
+    image: python:3.10-slim
+    container_name: portfolio_mlflow
+    working_dir: /mlflow
+    ports:
+      - "5000:5000"
+    volumes:
+      - mlflow_data:/mlflow_data
+    command: >
+      bash -c "pip install mlflow>=2.7.0 --quiet &&
+               mlflow server
+               --host 0.0.0.0
+               --port 5000
+               --backend-store-uri sqlite:////mlflow_data/mlflow.db
+               --default-artifact-root /mlflow_data/artifacts"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    restart: unless-stopped
+
+  # ── FastAPI Backend ────────────────────────────────────────────────────────
+  api:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      target: api
+    container_name: portfolio_api
+    ports:
+      - "8000:8000"
+    environment:
+      <<: *common-env
+    env_file:
+      - ../.env
+    volumes:
+      - model_checkpoints:/app/checkpoints
+      - model_prophet:/app/prophet_models
+      - model_rl:/app/rl_model
+      - processed_data:/app/data/processed
+      - mlflow_data:/app/mlflow_server
+    depends_on:
+      redis:
+        condition: service_healthy
+      mlflow:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health/ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+          cpus: "2.0"
+        reservations:
+          memory: 2G
+
+  # ── Streamlit Dashboard ────────────────────────────────────────────────────
+  dashboard:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      target: dashboard
+    container_name: portfolio_dashboard
+    ports:
+      - "8501:8501"
+    environment:
+      <<: *common-env
+    env_file:
+      - ../.env
+    volumes:
+      - processed_data:/app/data/processed
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: "1.0"
+
+volumes:
+  redis_data:
+    driver: local
+  mlflow_data:
+    driver: local
+  model_checkpoints:
+    driver: local
+  model_prophet:
+    driver: local
+  model_rl:
+    driver: local
+  processed_data:
+    driver: local
+
+networks:
+  default:
+    name: portfolio_net
+    driver: bridge

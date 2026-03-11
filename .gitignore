@@ -1,0 +1,82 @@
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# .gitignore — NSE Portfolio Optimizer
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+# Secrets
+.env
+*.key
+*.pem
+secrets/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+eggs/
+*.egg-info/
+.installed.cfg
+*.egg
+.eggs/
+
+# Virtual Environments
+.venv/
+venv/
+ENV/
+env/
+
+# Data (large files)
+data/raw/*.parquet
+data/processed/*.parquet
+data/benchmarks/*.parquet
+*.csv.gz
+
+# Trained Models (too large for git)
+models/checkpoints/
+models/saved/
+*.h5
+*.pt
+*.pth
+*.pkl
+!models/__init__.py
+
+# MLflow artifacts
+mlflow_artifacts/
+mlruns/
+mlflow_server/mlflow.db
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+*.cover
+.tox/
+
+# IDE
+.vscode/settings.json
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Logs
+*.log
+logs/
+
+# OS
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Docker volumes (local)
+docker/volumes/
+
+# Streamlit cache
+.streamlit/
