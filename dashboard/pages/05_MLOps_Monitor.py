@@ -228,8 +228,8 @@ fig_perf.add_trace(go.Scatter(
 ))
 fig_perf.add_hline(y=10, line=dict(color=WARNING, dash="dot", width=1),
                    annotation_text="MAPE Threshold", yref="y")
+fig_perf.update_layout(**_base_layout(title="Model Performance Over Time (FY 2024–25)"))
 fig_perf.update_layout(
-    **_base_layout(title="Model Performance Over Time (FY 2024–25)"),
     yaxis=dict(title="MAPE (%)", gridcolor=SLATE_BLUE, tickfont=dict(color=PLATINUM)),
     yaxis2=dict(title="Directional Accuracy (%)", overlaying="y", side="right",
                 gridcolor=SLATE_BLUE, tickfont=dict(color=PLATINUM)),
