@@ -1,0 +1,15 @@
+# Don't upload large data/model artifacts to Vercel
+data/processed/
+data/raw/
+models/checkpoints/
+models/prophet/
+models/rl/
+mlflow_server/
+.venv/
+__pycache__/
+*.pyc
+*.h5
+*.pkl
+*.parquet
+*.csv
+dashboard/
